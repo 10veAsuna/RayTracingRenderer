@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Fullscreen theme for NativeActivity.
+        - Inherits Theme.NoTitleBar.Fullscreen to hide the status bar and action bar.
+        - values-v28 and values-v30 add windowLayoutInDisplayCutoutMode, which lets the
+          window draw into the display cutout (notch) area on API 33-34. Without it the
+          system reserves that space and the native framebuffer gets a size/offset mismatch.
+          Each value is only set on the API levels that know it: API 28-29 throw
+          "Unknown windowLayoutInDisplayCutoutMode" on any value they do not support.
+    -->
+    <style name="FullscreenNative" parent="@android:style/Theme.NoTitleBar.Fullscreen">
+    </style>
+</resources>
