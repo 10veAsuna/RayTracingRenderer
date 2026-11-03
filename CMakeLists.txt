@@ -26,5 +26,8 @@ file(GLOB_RECURSE MYRENDER_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
 )
 add_executable(MyRender ${MYRENDER_SOURCES}
-        src/Camera.h)
+        src/Camera.h
+        src/Sphere.h
+        src/Disk.h
+        src/Triangle.h)
 target_link_libraries(MyRender PRIVATE glm minifb::minifb)

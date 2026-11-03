@@ -9,8 +9,8 @@ Renderer::Renderer(int w, int h)
 {
 	mCurrentPixelIndex = 0;
 	mCamera.Initialize(
-		Vector3f(10.0f, 5.0f, 20.0f),
-		Vector3f(10.0f, 10.0f, 30.0f),
+		Vector3f(0.0f, 0.0f, 0.0f),
+		Vector3f(0.0f, 0.0f, 1.0f),
 		Vector3f(0.0f, 1.0f, 0.0f),
 		glm::radians(60.0f),
 		0.1f,
@@ -18,6 +18,16 @@ Renderer::Renderer(int w, int h)
 		w,
 		h
 	);
+	
+	mSphere = new Sphere(Vector3f(0.0f, 0.0f, 5.0f), 1.0f);
+	mDisk = new Disk(Vector3f(0.0f, 0.0f, 5.0f),
+		Vector3f(glm::radians(90.0f), 0.0f, 0.0f),
+		1.0f);
+	mTriangle = new Triangle(Vector3f(-1.0f, 0.0f, 0.0f),
+		Vector3f(0.0f, 1.0f, 0.0f),
+		Vector3f(1.0f, 0.0f, 0.0f),
+		MakeWorldTransform(Vector3f(0.0f, 0.0f, 5.0f), Vector3f(0.0f, 0.0f, 0.0f), 1.0f)
+		);
 }
 
 void Renderer::Run()
@@ -51,8 +61,7 @@ void Renderer::Run()
 			break;
 
 	} while(mfb_wait_sync(window));
-
-	renderThread.join();
+	
 	
 	free(mBuffer);
 	mBuffer = NULL;
@@ -62,10 +71,31 @@ void Renderer::Run()
 
 Color Renderer::RenderPixel(int x, int y)
 {
-	Ray ray = mCamera.getRay(x, y);
+	//SSAA
+	static const int N = 128; //每个像素采样的次数
+	Color resultColor = Color(0.0f, 0.0f, 0.0f);
 	
-	//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	return Color(1.0f, 0.3f, 0.8f);
+	for (int i = 0; i < N; ++i)
+	{
+		//（x, y） - （x + 1, y + 1）范围内随机采样一个点
+		float px = x + glm::linearRand(0.0f, 1.0f);
+		float py = y + glm::linearRand(0.0f, 1.0f);
+		
+		Ray ray = mCamera.GetRay(px, py);
+		Intersection isect;
+		Color color = Color(0.0f, 0.0f, 0.0f);
+		
+		if (mTriangle->Intersect(ray, isect))
+		{
+			color += isect.normal * 0.5f + 0.5f; // 将法线向量映射到[0, 1]范围内
+		}
+		resultColor += color / (float)N;
+	}
+	return resultColor; //平均值
+	
+	
+	
+
 }
 
 //渲染线程入口函数

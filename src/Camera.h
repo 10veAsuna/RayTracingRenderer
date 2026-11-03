@@ -7,7 +7,7 @@ public:
     void Initialize(const Vector3f& p, const Vector3f& target, const Vector3f& up, 
         float fov, float n, float f, int w, int h);
     
-    Ray getRay(float x, float y) const;
+    Ray GetRay(float x, float y) const;
     
 private:
     Vector3f mPosition;
