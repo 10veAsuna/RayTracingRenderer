@@ -1,27 +1,31 @@
 ﻿#include "Triangle.h"
 
-Triangle::Triangle(const Vector3f& v0, const Vector3f& v1, const Vector3f& v2, const Matrix4x4& worldMatrix)
+#include "SceneObject.h"
+
+Triangle::Triangle(SceneObject* pSceneObject, const Vector3f& v0, const Vector3f& v1, const Vector3f& v2)
+    : Primitive(pSceneObject)
 {
-    mVertices[0] = Vector3f(worldMatrix * Vector4f(v0, 1.0f));
-    mVertices[1] = Vector3f(worldMatrix * Vector4f(v1, 1.0f));
-    mVertices[2] = Vector3f(worldMatrix * Vector4f(v2, 1.0f));
+    mVertices[0] = v0;
+    mVertices[1] = v1;
+    mVertices[2] = v2;
     Vector3f edge1 = mVertices[1] - mVertices[0];
     Vector3f edge2 = mVertices[2] - mVertices[0];
     mNormal = glm::normalize(glm::cross(edge1, edge2));
-    
 }
 
 bool Triangle::Intersect(Ray ray, Intersection& isect) const
 {
+    Ray r = m_pSceneObject->GetWorldToObject() * ray;
+
     Vector3f p0 = mVertices[0];
     Vector3f p1 = mVertices[1];
     Vector3f p2 = mVertices[2];
     
     Vector3f e1 = p1 - p0;
     Vector3f e2 = p2 - p0;
-    Vector3f s = ray.origin - p0;
+    Vector3f s = r.origin - p0;
     
-    Vector3f s1 = glm::cross(ray.direction, e2);
+    Vector3f s1 = glm::cross(r.direction, e2);
     Vector3f s2 = glm::cross(s, e1);
     
     float det = glm::dot(s1, e1);
@@ -30,17 +34,18 @@ bool Triangle::Intersect(Ray ray, Intersection& isect) const
     
     float invDet = 1.0f / det;
     float b1 = glm::dot(s1, s) * invDet;
-    float b2 = glm::dot(s2, ray.direction) * invDet;
+    float b2 = glm::dot(s2, r.direction) * invDet;
     float t = glm::dot(s2, e2) * invDet;
     
-    if (t < ray.mint || t > ray.maxt)
+    if (t < r.mint || t > r.maxt)
         return false;
     float b0 = 1.0f - b1 - b2;
     if (b0 <0.0f || b1 < 0.0f || b2 < 0.0f)
         return false;
     
-    isect.position = ray.origin + t * ray.direction;
-    isect.normal = mNormal;
+    Vector3f p = r.origin + t * r.direction;
+    isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p, 1.0f));
+    isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(mNormal, 0.0f)));
     isect.t = t;
     return true;
 }

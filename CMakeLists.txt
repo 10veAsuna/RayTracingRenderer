@@ -17,17 +17,48 @@ if(WIN32)
 endif()
 add_subdirectory(third_party/minifb)
 
-file(GLOB_RECURSE MYRENDER_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+add_library(tinyxml2 STATIC
+    third_party/tinyxml2/tinyxml2.cpp
+    third_party/tinyxml2/tinyxml2.h
+    third_party/tinyxml2/LICENSE.txt
 )
-add_executable(MyRender ${MYRENDER_SOURCES}
-        src/Camera.h
-        src/Sphere.h
-        src/Disk.h
-        src/Triangle.h)
-target_link_libraries(MyRender PRIVATE glm minifb::minifb)
+
+add_library(MyRenderCore STATIC
+    src/Camera.cpp
+    src/Camera.h
+    src/Common.h
+    src/Disk.cpp
+    src/Disk.h
+    src/Light.cpp
+    src/Light.h
+    src/Material.cpp
+    src/Material.h
+    src/Primitive.cpp
+    src/Primitive.h
+    src/Ray.cpp
+    src/Ray.h
+    src/Scene.cpp
+    src/Scene.h
+    src/SceneObject.cpp
+    src/SceneObject.h
+    src/SceneXmlLoader.cpp
+    src/SceneXmlLoader.h
+    src/Sphere.cpp
+    src/Sphere.h
+    src/Triangle.cpp
+    src/Triangle.h
+)
+target_include_directories(MyRenderCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(MyRenderCore PUBLIC glm PRIVATE tinyxml2)
+
+add_executable(MyRender
+    src/main.cpp
+    src/Renderer.cpp
+    src/Renderer.h
+    scenes/scene08.xml
+    scenes/scene09.xml
+)
+target_link_libraries(MyRender PRIVATE MyRenderCore minifb::minifb)
+
+configure_file(scenes/scene08.xml scenes/scene08.xml COPYONLY)
+configure_file(scenes/scene09.xml scenes/scene09.xml COPYONLY)

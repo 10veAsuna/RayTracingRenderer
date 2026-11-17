@@ -1,16 +1,16 @@
 ﻿#include "Disk.h"
 
-Disk::Disk(const Vector3f& center, const Vector3f& euler, float radius)
-    : mRadius(radius)
+#include "SceneObject.h"
+
+Disk::Disk(SceneObject* pSceneObject, float radius)
+    : Primitive(pSceneObject), mRadius(radius)
 {
-    mObjectToWorld = MakeWorldTransform(center, euler, 1.0f);
-    mWorldToObject = glm::inverse(mObjectToWorld);
 }
 
 bool Disk::Intersect(Ray ray, Intersection& isect) const
 {
     //ray转到局部坐标系
-    Ray r = mWorldToObject * ray;
+    Ray r = m_pSceneObject->GetWorldToObject() * ray;
     
     //t
     if (fabs(r.direction.z) <= 1e-6f) //平行无交点
@@ -26,8 +26,8 @@ bool Disk::Intersect(Ray ray, Intersection& isect) const
     if (glm::dot(p, p) > mRadius * mRadius)
         return false;
     
-    isect.position = Vector3f(mObjectToWorld * Vector4f(p , 1.0f)); //交点位置世界坐标   
-    isect.normal = glm::normalize(Vector3f(mObjectToWorld * Vector4f(0.0f, 0.0f, 1.0f, 0.0f)));
+    isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p , 1.0f)); //交点位置世界坐标
+    isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(0.0f, 0.0f, 1.0f, 0.0f)));
     isect.t = t;
     return true;
 }
