@@ -1,11 +1,13 @@
 ﻿#pragma once
 #include "Ray.h"
 
+class SceneObject;
+
 class Light
 {
 public:
     //对于一点p，求L（p）
-    virtual Color GetRadiance(const Vector3f& p, Vector3f& sourcePos) const = 0;
+    virtual Color GetRadiance(const Vector3f& p, Vector3f& sourcePos, float& pdf) const = 0;
     virtual ~Light() = default;
 };
 
@@ -16,7 +18,7 @@ public:
     DirectionalLight(const Vector3f& direction, const Color& radiance)
         : mDirection(glm::normalize(direction)), mRadiance(radiance){}
 
-    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos) const override;
+    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos, float& pdf) const override;
 
 private:
     Vector3f mDirection; //光线方向，单位向量
@@ -30,7 +32,7 @@ class PointLight : public Light
 public:
     PointLight(const Vector3f& position, const Color& intensity, const Vector3f& attenuations)
         : mPosition(position), mIntensity(intensity), mAttenuations(attenuations){}
-    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos) const override;
+    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos, float& pdf) const override;
 
 private:
     Vector3f mPosition;
@@ -46,7 +48,7 @@ public:
         float innerAngle, float outerAngle, const Vector3f& attenuations)
             : mPosition(position), mDirection(glm::normalize(direction)), mIntensity(intensity),
             mCosInnerAngle(cos(innerAngle)), mCosOuterAngle(cos(outerAngle)), mAttenuations(attenuations){}
-    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos) const override;
+    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos, float& pdf) const override;
 
 private:
     Vector3f mDirection;
@@ -57,4 +59,15 @@ private:
     float mCosOuterAngle;
     
     Vector3f mAttenuations;
+};
+
+//面光源
+class AreaLight : public Light
+{
+public:
+    AreaLight(SceneObject* pSceneObject)
+        : pSceneObject(pSceneObject){}
+    Color GetRadiance(const Vector3f& p, Vector3f& sourcePos, float& pdf) const override;
+private:
+    SceneObject* pSceneObject;
 };

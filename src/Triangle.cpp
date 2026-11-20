@@ -11,6 +11,7 @@ Triangle::Triangle(SceneObject* pSceneObject, const Vector3f& v0, const Vector3f
     Vector3f edge1 = mVertices[1] - mVertices[0];
     Vector3f edge2 = mVertices[2] - mVertices[0];
     mNormal = glm::normalize(glm::cross(edge1, edge2));
+    mArea = 0.5f * glm::length(glm::cross(edge1, edge2));
 }
 
 bool Triangle::Intersect(Ray ray, Intersection& isect) const
@@ -48,4 +49,11 @@ bool Triangle::Intersect(Ray ray, Intersection& isect) const
     isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(mNormal, 0.0f)));
     isect.t = t;
     return true;
+}
+
+void Triangle::Sample(Vector3f& p, Vector3f& normal, float& pdf) const
+{
+    p = UniformRandomTriangle(mVertices[0], mVertices[1], mVertices[2]);
+    normal = mNormal;
+    pdf = 1.0f / mArea;
 }

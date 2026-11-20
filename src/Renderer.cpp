@@ -83,10 +83,11 @@ Color Renderer::RenderPixel(int x, int y)
 Color Renderer::RenderSubPixel(float x, float y)
 {
 	Ray ray = mScene->GetCamera().GetRay(x, y);
-	Color color = GetRadiance(ray, 0);
+	Color color = GetRadiance(ray, 0, false);
 	return color;
 }
 
+/*
 Color Renderer::GetIrradiance(const Ray& ray)
 {
 	Intersection isect;
@@ -97,7 +98,7 @@ Color Renderer::GetIrradiance(const Ray& ray)
 	for (Light* pLight : mScene->GetLights())
 	{
 		Vector3f sourcePos;
-		Color L = pLight->GetRadiance(isect.position, sourcePos);
+		Color L = pLight->GetRadiance(isect.position, sourcePos, TODO);
 		
 		Ray shadowRay;
 		shadowRay.origin = isect.position;
@@ -112,8 +113,9 @@ Color Renderer::GetIrradiance(const Ray& ray)
 	}
 	return E;
 }
+*/
 
-Color Renderer::GetRadiance(const Ray& ray, int depth)
+Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 {
 	if (depth > mMaxDepth)
 		return Color(0.0f, 0.0f, 0.0f);
@@ -144,18 +146,28 @@ Color Renderer::GetRadiance(const Ray& ray, int depth)
 	Matrix3x3 worldToLocal = glm::inverse(localToWorld);
 	Vector3f wo = worldToLocal * (-ray.direction);
 	
+	//自发光
+	Color Le = pSceneObject->GetEmissive();
+	if (bPrevIsSpecular || depth == 0)
+	{
+		Lo += Le;
+	}
+
+	
+	//直接光照
 	if (!pMaterial->IsSpecular())
 	{
 		for (Light* pLight : mScene->GetLights())
 		{
 			Vector3f sourcePos;
-			Color L = pLight->GetRadiance(isect.position, sourcePos);
+			float pdf;
+			Color L = pLight->GetRadiance(isect.position, sourcePos, pdf);
 		
 			Ray shadowRay;
 			shadowRay.origin = isect.position;
 			shadowRay.direction = glm::normalize(sourcePos - isect.position);
 			shadowRay.mint = 1e-4f;
-			shadowRay.maxt =glm::length(sourcePos - isect.position);
+			shadowRay.maxt =glm::length(sourcePos - isect.position) - 1e-5f;
 			
 			Intersection shadowIsect;
 			if (mScene->Intersect(shadowRay, shadowIsect))
@@ -163,56 +175,37 @@ Color Renderer::GetRadiance(const Ray& ray, int depth)
 			Vector3f wi = worldToLocal * shadowRay.direction;
 			float cosTheta = glm::dot(isect.normal, shadowRay.direction);
 			Color brdf = pMaterial->BRDF(wo, wi);
-			Lo += brdf * L * glm::max(cosTheta, 0.0f);
+			Lo += brdf * L * glm::max(cosTheta, 0.0f) / std::max(1e-4f, pdf);
 		}
 	}
-	
 	//间接光照
-	if (pMaterial->IsSpecular())
+	//反射
 	{
-		//反射
-		{
-			Vector3f wi = Vector3f(-wo.x, -wo.y, wo.z);
-			Color brdf = pMaterial->BRDF(wo, wi);
-			Ray r;
-			r.direction = localToWorld * wi;
-			r.origin = isect.position;
-			r.mint = 1e-4f;
-			Color Li = GetRadiance(r, depth + 1);
-			Lo += brdf * Li * std::fabs(wi.z);
-		}		
-		//折射
-		{
-			Vector3f wi;
-			if (pMaterial->SampleWt(wo, wi))
-			{
-				Color btdf = pMaterial->BTDF(wo, wi);
-				Ray r;
-				r.direction = localToWorld * wi;
-				r.origin = isect.position;
-				r.mint = 1e-4f;
-				Color Li = GetRadiance(r, depth + 1);
-				Lo += btdf * Li * std::fabs(wi.z);
-			}
-		}
-
-	}
-	else
-	{
-		const float theta = Random(0.0f, PI * 0.5f);
-		const float phi = Random(0.0f, PI * 2.0f);
-		Vector3f wi = GetSphericalCoordinate(theta, phi);
+		float pdf;
+		Vector3f wi = pMaterial->SampleWi(wo, pdf);
 	
 		Color brdf = pMaterial->BRDF(wo, wi);
 		Ray r;
 		r.direction = localToWorld * wi;
 		r.origin = isect.position;
 		r.mint = 1e-4f;
-		Color Li = GetRadiance(r, depth + 1);
-		Lo += brdf * Li * glm::cos(theta) * glm::sin(theta) * PI * PI;
+		Color Li = GetRadiance(r, depth + 1, pMaterial->IsSpecular());
+		Lo += brdf * Li * std::fabs(wi.z) / std::max(1e-4f, pdf);
 	}
-
-	
+	//折射
+	{
+		Vector3f wi;
+		if (pMaterial->SampleWt(wo, wi))
+		{
+			Color btdf = pMaterial->BTDF(wo, wi);
+			Ray r;
+			r.direction = localToWorld * wi;
+			r.origin = isect.position;
+			r.mint = 1e-4f;
+			Color Li = GetRadiance(r, depth + 1, pMaterial->IsSpecular());
+			Lo += btdf * Li * std::fabs(wi.z);
+		}
+	}
 	return Lo * rewardFactor;
 }
 

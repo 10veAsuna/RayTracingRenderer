@@ -57,8 +57,10 @@ add_executable(MyRender
     src/Renderer.h
     scenes/scene08.xml
     scenes/scene09.xml
+    scenes/scene_area_light.xml
 )
 target_link_libraries(MyRender PRIVATE MyRenderCore minifb::minifb)
 
 configure_file(scenes/scene08.xml scenes/scene08.xml COPYONLY)
 configure_file(scenes/scene09.xml scenes/scene09.xml COPYONLY)
+configure_file(scenes/scene_area_light.xml scenes/scene_area_light.xml COPYONLY)

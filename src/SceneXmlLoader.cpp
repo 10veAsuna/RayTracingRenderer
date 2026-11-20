@@ -570,7 +570,7 @@ namespace
         Material* defaultMaterial = nullptr;
         for (const XMLElement* element = elements->FirstChildElement(); element; element = element->NextSiblingElement())
         {
-            CheckChildren(element, { "Transform", "Material", "Primitives" });
+            CheckChildren(element, { "Transform", "Material", "Emissive", "Primitives" });
             const XMLElement* transform = RequireChild(element, "Transform");
             CheckValueFields(transform, { "Position", "Rotation", "Scale" });
             const Vector3f position = transform->FirstChildElement("Position") ?
@@ -603,6 +603,15 @@ namespace
             }
             SceneObject* object = scene.CreateSceneObject(position, glm::radians(rotation), scale);
             object->SetMaterial(material);
+            if (element->FirstChildElement("Emissive"))
+            {
+                const Color emissive = ReadChildVector3(element, "Emissive");
+                if (glm::any(glm::lessThan(emissive, Color(0.0f))))
+                {
+                    throw SceneError(element->FirstChildElement("Emissive"), "emissive components must be nonnegative");
+                }
+                object->SetEmissive(emissive);
+            }
 
             const XMLElement* primitives = RequireChild(element, "Primitives");
             CheckChildren(primitives, { "Sphere", "Disk", "Triangle" }, false);
@@ -633,6 +642,10 @@ namespace
                     if (type == "Sphere") object->CreatePrimitive<Sphere>(radius);
                     else object->CreatePrimitive<Disk>(radius);
                 }
+            }
+            if (glm::any(glm::greaterThan(object->GetEmissive(), Color(0.0f))))
+            {
+                scene.CreateLight<AreaLight>(object);
             }
         }
     }

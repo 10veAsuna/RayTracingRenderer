@@ -21,3 +21,11 @@ SceneObject::~SceneObject()
         delete primitive;
     }
 }
+
+void SceneObject::Sample(Vector3f& p, Vector3f& normal, float& pdf)
+{
+    //随机取一个primitive
+    int index = RandomInt(0, mPrimitives.size() - 1);
+    mPrimitives[index]->Sample(p, normal, pdf);
+    pdf /= mPrimitives.size();
+}

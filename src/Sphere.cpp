@@ -46,3 +46,14 @@ bool Sphere::Intersect(Ray ray, Intersection& isect) const
     return true;
 }
 
+void Sphere::Sample(Vector3f& p, Vector3f& normal, float& pdf) const
+{
+    p = UniformRandomSphere();
+    normal = p;
+    p *= mRadius;
+    //转到世界空间
+    p = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p, 1.0f));
+    normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(normal, 0.0f)));
+    pdf = 1.0f / (4.0f * PI * mRadius * mRadius);
+}
+

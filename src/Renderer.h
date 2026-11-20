@@ -20,7 +20,7 @@ private:
 	Color RenderPixel(int x, int y);
 	Color RenderSubPixel(float x, float y);
 	Color GetIrradiance(const Ray& ray);
-	Color GetRadiance(const Ray& ray, int depth);
+	Color GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular);
 	
 	void RunRenderThread();
 	

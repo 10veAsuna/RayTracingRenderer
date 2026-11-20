@@ -31,3 +31,13 @@ bool Disk::Intersect(Ray ray, Intersection& isect) const
     isect.t = t;
     return true;
 }
+
+void Disk::Sample(Vector3f& p, Vector3f& normal, float& pdf) const
+{
+    Vector2f p2 = UniformRandomDisk(mRadius);
+    p = Vector3f(p2.x, p2.y, 0.0f);
+    //转成世界空间
+    p = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p, 1.0f));
+    normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(0.0f, 0.0f, 1.0f, 0.0f)));
+    pdf = 1.0f / (PI * mRadius * mRadius);
+}
