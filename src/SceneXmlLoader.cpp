@@ -407,9 +407,26 @@ namespace
                 CheckValueFields(material, { "Name", "Type", "Albedo" });
                 CreateLambertMaterial(material, scene, name, ReadChildVector3(material, "Albedo"));
             }
-            else if (type == "ConductorSpecular")
+            else if (type == "OrenNayar")
             {
-                CheckValueFields(material, { "Name", "Type", "Eta", "AbsorptionCoef", "ReflectionColor" });
+                CheckValueFields(material, { "Name", "Type", "Albedo", "Sigma" });
+                if (scene.GetMaterial(name))
+                    throw SceneError(material, "duplicate material name '" + name + "'");
+                const Color albedo = ReadChildVector3(material, "Albedo");
+                const float sigma = ReadChildFloat(material, "Sigma");
+                if (glm::any(glm::lessThan(albedo, Color(0.0f))) ||
+                    glm::any(glm::greaterThan(albedo, Color(1.0f))))
+                    throw SceneError(material, "<Albedo> components must be between 0 and 1");
+                if (sigma < 0.0f || sigma > PI * 0.5f)
+                    throw SceneError(material, "<Sigma> must be between 0 and pi/2 radians");
+                scene.CreateMaterial<OrenNayarMaterial>(name, albedo, sigma);
+            }
+            else if (type == "ConductorSpecular" || type == "TorranceSparrow")
+            {
+                if (type == "TorranceSparrow")
+                    CheckValueFields(material, { "Name", "Type", "Exponent", "Eta", "AbsorptionCoef", "ReflectionColor" });
+                else
+                    CheckValueFields(material, { "Name", "Type", "Eta", "AbsorptionCoef", "ReflectionColor" });
                 if (scene.GetMaterial(name))
                 {
                     throw SceneError(material, "duplicate material name '" + name + "'");
@@ -432,7 +449,15 @@ namespace
                     throw SceneError(material, "<ReflectionColor> components must be between 0 and 1");
                 }
 
-                scene.CreateMaterial<ConductorSpecularMaterial>(name, eta, absorption, reflection);
+                if (type == "TorranceSparrow")
+                {
+                    const float exponent = ReadChildFloat(material, "Exponent");
+                    if (exponent < 0.0f)
+                        throw SceneError(material, "<Exponent> must be nonnegative");
+                    scene.CreateMaterial<TorranceSparrowMaterial>(name, exponent, eta, absorption, reflection);
+                }
+                else
+                    scene.CreateMaterial<ConductorSpecularMaterial>(name, eta, absorption, reflection);
             }
             else if (type == "DielectricSpecular")
             {

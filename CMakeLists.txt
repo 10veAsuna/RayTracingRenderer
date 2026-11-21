@@ -23,6 +23,13 @@ add_library(tinyxml2 STATIC
     third_party/tinyxml2/LICENSE.txt
 )
 
+add_library(stb_image STATIC
+    third_party/stb/stb_image.cpp
+    third_party/stb/stb_image.h
+    third_party/stb/LICENSE
+)
+target_include_directories(stb_image PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb")
+
 add_library(MyRenderCore STATIC
     src/Camera.cpp
     src/Camera.h
@@ -49,7 +56,7 @@ add_library(MyRenderCore STATIC
     src/Triangle.h
 )
 target_include_directories(MyRenderCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(MyRenderCore PUBLIC glm PRIVATE tinyxml2)
+target_link_libraries(MyRenderCore PUBLIC glm stb_image PRIVATE tinyxml2)
 
 add_executable(MyRender
     src/main.cpp
@@ -58,6 +65,8 @@ add_executable(MyRender
     scenes/scene08.xml
     scenes/scene09.xml
     scenes/scene_area_light.xml
+        src/Texture.h
+        src/Texture.cpp
 )
 target_link_libraries(MyRender PRIVATE MyRenderCore minifb::minifb)
 

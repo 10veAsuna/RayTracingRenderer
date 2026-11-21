@@ -1,0 +1,205 @@
+<Scene>
+	<Camera>
+		<Position>0, 0.6, -2.58</Position>
+		<Target>0, 0.65, 0</Target>
+		<Up>0, 1, 0</Up>
+		<NearZ>0.1</NearZ>
+		<FarZ>1000</FarZ>
+		<Fov>45</Fov>
+	</Camera>
+	
+	<Materials>
+        <Material>
+            <Name>M_Lambert_Red</Name><Type>Lambert</Type><Albedo>0.65, 0.12, 0.08</Albedo>
+        </Material>
+        <Material>
+            <Name>M_Lambert_Blue</Name><Type>Lambert</Type><Albedo>0.12, 0.25, 0.65</Albedo>
+        </Material>
+        <Material>
+            <Name>M_Lambert_Gray</Name><Type>Lambert</Type><Albedo>0.7, 0.7, 0.7</Albedo>
+        </Material>
+        <!-- Rough diffuse clay. Sigma is in radians; Sigma=0 matches Lambert. -->
+        <Material>
+            <Name>M_Rough_Clay</Name>
+            <Type>OrenNayar</Type>
+            <Albedo>0.75, 0.38, 0.16</Albedo>
+            <Sigma>0.7</Sigma>
+        </Material>
+        <!-- Glossy gold-like conductor. Smaller Exponent gives broader reflections. -->
+        <Material>
+            <Name>M_Rough_Gold</Name>
+            <Type>TorranceSparrow</Type>
+            <Exponent>40</Exponent>
+            <Eta>0.3, 1.0, 1.4</Eta>
+            <AbsorptionCoef>4, 2.5, 2</AbsorptionCoef>
+            <ReflectionColor>1, 1, 1</ReflectionColor>
+        </Material>
+    </Materials>
+
+	<SceneObjects>
+		<!-- Left sphere: Oren-Nayar rough diffuse. -->
+		<SceneObject>
+			<Transform>
+				<Position>-0.4, 0.3, 0.1</Position>
+				<Rotation>0, 0, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Rough_Clay</Material>
+			<Primitives>
+				<Sphere>
+					<Radius>0.3</Radius>
+				</Sphere>
+			</Primitives>
+		</SceneObject>
+
+		<!-- Right sphere: Torrance-Sparrow rough conductor. -->
+		<SceneObject>
+			<Transform>
+				<Position>0.4, 0.3, -0.1</Position>
+				<Rotation>0, 0, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Rough_Gold</Material>
+			<Primitives>
+				<Sphere>
+					<Radius>0.3</Radius>
+				</Sphere>
+			</Primitives>
+		</SceneObject>
+
+		<!-- ground -->
+		<SceneObject>
+			<Transform>
+				<Position>0, 0, 0</Position>
+				<Rotation>-90, 0, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Lambert_Gray</Material>
+			<Primitives>
+				<Triangle>
+					<Vertex>-1, -1, 0</Vertex>
+					<Vertex>1, -1, 0</Vertex>
+					<Vertex>1, 1, 0</Vertex>
+				</Triangle>
+				<Triangle>
+					<Vertex>-1, -1, 0</Vertex>
+					<Vertex>1, 1, 0</Vertex>
+					<Vertex>-1, 1, 0</Vertex>
+				</Triangle>
+			</Primitives>
+		</SceneObject>
+
+		<!-- ceiling -->
+		<SceneObject>
+			<Transform>
+				<Position>0, 1.5, 0</Position>
+				<Rotation>90, 0, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Lambert_Gray</Material>
+			<Primitives>
+				<Triangle>
+					<Vertex>-1, -1, 0</Vertex>
+					<Vertex>1, -1, 0</Vertex>
+					<Vertex>1, 1, 0</Vertex>
+				</Triangle>
+				<Triangle>
+					<Vertex>-1, -1, 0</Vertex>
+					<Vertex>1, 1, 0</Vertex>
+					<Vertex>-1, 1, 0</Vertex>
+				</Triangle>
+			</Primitives>
+		</SceneObject>
+
+		<!-- left wall -->
+		<SceneObject>
+			<Transform>
+				<Position>-1, 0.75, 0</Position>
+				<Rotation>0, 90, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Lambert_Red</Material>
+			<Primitives>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+				</Triangle>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+					<Vertex>-1, 0.75, 0</Vertex>
+				</Triangle>
+			</Primitives>
+		</SceneObject>
+
+		<!-- right wall -->
+		<SceneObject>
+			<Transform>
+				<Position>1, 0.75, 0</Position>
+				<Rotation>0, -90, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Lambert_Blue</Material>
+			<Primitives>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+				</Triangle>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+					<Vertex>-1, 0.75, 0</Vertex>
+				</Triangle>
+			</Primitives>
+		</SceneObject>
+
+        <!-- back wall -->
+		<SceneObject>
+			<Transform>
+				<Position>0, 0.75, 1</Position>
+				<Rotation>180, 0, 0</Rotation>
+				<Scale>1</Scale>
+			</Transform>
+			<Material>M_Lambert_Gray</Material>
+			<Primitives>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+				</Triangle>
+				<Triangle>
+					<Vertex>-1, -0.75, 0</Vertex>
+					<Vertex>1, 0.75, 0</Vertex>
+					<Vertex>-1, 0.75, 0</Vertex>
+				</Triangle>
+			</Primitives>
+		</SceneObject>
+
+        <!-- Square ceiling emitter. Vertices are in world space for triangle sampling. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Gray</Material>
+            <Emissive>12, 12, 12</Emissive>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-0.4, 1.49, -0.4</Vertex>
+                    <Vertex>0.4, 1.49, -0.4</Vertex>
+                    <Vertex>0.4, 1.49, 0.4</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-0.4, 1.49, -0.4</Vertex>
+                    <Vertex>0.4, 1.49, 0.4</Vertex>
+                    <Vertex>-0.4, 1.49, 0.4</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+
+    </SceneObjects>
+</Scene>
+
