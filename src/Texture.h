@@ -23,8 +23,8 @@ public:
     template <typename T>
     T GetPixel(int x, int y)
     {
-        int x = glm::clamp(x, 0, mWidth - 1);
-        int y = glm::clamp(y, 0, mHeight - 1);
+        x = glm::clamp(x, 0, mWidth - 1);
+        y = glm::clamp(y, 0, mHeight - 1);
         int index = y * mWidth + x * mChannels;
         
         if constexpr (std::is_same_v<T, float>)
