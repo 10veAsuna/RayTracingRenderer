@@ -1,13 +1,19 @@
 ﻿#include "Material.h"
 
-Color LambertMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
+Color LambertMaterial::BRDF(Vector2f uv, const Vector3f& wo, const Vector3f& wi) const
 {
     if (wo.z <= 1e-4f || wi.z <= 1e-4f)
         return Color(0.0f, 0.0f, 0.0f);
-    return mAlbedo * INV_PI;
+    
+    Vector3f albedo = mAlbedo;
+    if (pAlbedoMap)
+    {
+        albedo *= pAlbedoMap->Sample<Color>(uv);
+    }
+    return albedo * INV_PI;
 }
 
-Vector3f LambertMaterial::SampleWi(const Vector3f& wo, float& pdf) const
+Vector3f LambertMaterial::SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const
 {
     float e1 = Random01();
     float e2 = Random01();
@@ -22,7 +28,7 @@ Vector3f LambertMaterial::SampleWi(const Vector3f& wo, float& pdf) const
     return wi;
 }
 
-Color ConductorSpecularMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
+Color ConductorSpecularMaterial::BRDF(Vector2f uv, const Vector3f& wo, const Vector3f& wi) const
 {
     if (!fabs(wo.x + wi.x) <= 1e-6f
         && fabs(wo.y + wi.y) <= 1e-6f
@@ -43,14 +49,14 @@ Color ConductorSpecularMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) co
     return Fr * mReflectionColor / std::max(std::fabs(cosTheta), 1e-4f);
 }
 
-Vector3f ConductorSpecularMaterial::SampleWi(const Vector3f& wo, float& pdf) const
+Vector3f ConductorSpecularMaterial::SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const
 {
     Vector3f wi(-wo.x, -wo.y, wo.z);
     pdf = 1.0f;
     return wi;
 }
 
-Color DielectricSpecularMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
+Color DielectricSpecularMaterial::BRDF(Vector2f uv, const Vector3f& wo, const Vector3f& wi) const
 {
     float cosThetaI = fabs(wo.z);
     float etaI = 1.0f;
@@ -115,7 +121,7 @@ bool DielectricSpecularMaterial::SampleWt(const Vector3f& wi, Vector3f& wt) cons
     return ComputeRefractVector(wi, etaI, etaT, wt);
 }
 
-Vector3f DielectricSpecularMaterial::SampleWi(const Vector3f& wo, float& pdf) const
+Vector3f DielectricSpecularMaterial::SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const
 {
     Vector3f wi(-wo.x, -wo.y, wo.z);
     pdf = 1.0f;
@@ -129,7 +135,7 @@ float DielectricSpecularMaterial::Fresnel(float etaI, float etaT, float cosTheta
     return 0.5f * (r1 * r1 + r2 * r2);
 }
 
-Color OrenNayarMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
+Color OrenNayarMaterial::BRDF(Vector2f uv, const Vector3f& wo, const Vector3f& wi) const
 {
     if (wi.z <= 1e-4f || wo.z <= 1e-4f)
         return Color(0.0f, 0.0f, 0.0f);
@@ -154,10 +160,16 @@ Color OrenNayarMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
     float tanBeta = glm::min(tanThetaI, tanThetaO);
     float cosDeltaPhi = cosPhiI * cosPhiO + sinPhiI * sinPhiO;
     
-    return mAlbedo * INV_PI * (A + B * glm::max(0.0f, cosDeltaPhi) * sinAltha * tanBeta);
+    Vector3f albedo = mAlbedo;
+    if (pAlbedoMap)
+    {
+        albedo *= pAlbedoMap->Sample<Color>(uv);
+    }
+    
+    return albedo * INV_PI * (A + B * glm::max(0.0f, cosDeltaPhi) * sinAltha * tanBeta);
 }
 
-Vector3f OrenNayarMaterial::SampleWi(const Vector3f& wo, float& pdf) const
+Vector3f OrenNayarMaterial::SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const
 {
     float e1 = Random01();
     float e2 = Random01();
@@ -172,7 +184,7 @@ Vector3f OrenNayarMaterial::SampleWi(const Vector3f& wo, float& pdf) const
     return wi;
 }
 
-Color TorranceSparrowMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) const
+Color TorranceSparrowMaterial::BRDF(Vector2f uv, const Vector3f& wo, const Vector3f& wi) const
 {
     if (wo.z <= 1e-4f || wi.z <= 1e-4f)
         return Color(0.0f, 0.0f, 0.0f);
@@ -198,7 +210,7 @@ Color TorranceSparrowMaterial::BRDF(const Vector3f& wo, const Vector3f& wi) cons
     return mReflectionColor * D * F * G / (4 * wo.z * wi.z);
 }
 
-Vector3f TorranceSparrowMaterial::SampleWi(const Vector3f& wo, float& pdf) const
+Vector3f TorranceSparrowMaterial::SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const
 {
     float e1 = Random01();
     float e2 = Random01();

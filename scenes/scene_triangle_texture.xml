@@ -1,0 +1,47 @@
+<Scene>
+    <Camera>
+        <Position>0, 0, -3</Position>
+        <Target>0, 0, 0</Target>
+        <Up>0, 1, 0</Up>
+        <NearZ>0.1</NearZ>
+        <FarZ>100</FarZ>
+        <Fov>45</Fov>
+    </Camera>
+    <Materials>
+        <Material>
+            <Name>M_Triangle</Name>
+            <Type>Lambert</Type>
+            <Albedo>1, 1, 1</Albedo>
+        </Material>
+    </Materials>
+    <SceneObjects>
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Triangle</Material>
+            <Primitives>
+                <!-- Two triangles form one rectangle and share a continuous UV layout.
+                     UVs cover the whole image, with V=0 at the image top. -->
+                <Triangle>
+                    <Vertex>-1.4, -0.9, 0</Vertex>
+                    <Vertex>-1.4, 0.9, 0</Vertex>
+                    <Vertex>1.4, 0.9, 0</Vertex>
+                    <UV>0, 1</UV>
+                    <UV>0, 0</UV>
+                    <UV>1, 0</UV>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-1.4, -0.9, 0</Vertex>
+                    <Vertex>1.4, 0.9, 0</Vertex>
+                    <Vertex>1.4, -0.9, 0</Vertex>
+                    <UV>0, 1</UV>
+                    <UV>1, 0</UV>
+                    <UV>1, 1</UV>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+    </SceneObjects>
+</Scene>

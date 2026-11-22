@@ -7,6 +7,7 @@
 #include "Sphere.h"
 #include "Disk.h"
 #include "Scene.h"
+#include "Texture.h"
 #include "Triangle.h"
 
 class Renderer
@@ -37,4 +38,5 @@ private:
 	std::atomic<int> mCurrentPixelIndex = 0;
 	
 	Scene* mScene = nullptr;
+	
 };

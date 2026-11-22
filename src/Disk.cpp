@@ -26,6 +26,12 @@ bool Disk::Intersect(Ray ray, Intersection& isect) const
     if (glm::dot(p, p) > mRadius * mRadius)
         return false;
     
+    float phi = std::atan2f(p.y, p.x);
+    if (phi < 0.0f)
+        phi += 2.0f * PI;
+    isect.uv.x = phi * INV_PI * 0.5f;
+    isect.uv.y = glm::length(p) / mRadius;
+    
     isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p , 1.0f)); //交点位置世界坐标
     isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(0.0f, 0.0f, 1.0f, 0.0f)));
     isect.t = t;

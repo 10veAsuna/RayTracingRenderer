@@ -2,14 +2,19 @@
 
 #include "SceneObject.h"
 
-Triangle::Triangle(SceneObject* pSceneObject, const Vector3f& v0, const Vector3f& v1, const Vector3f& v2)
+Triangle::Triangle(SceneObject* pSceneObject, const Vector3f positions[3], const Vector2f uvs[3])
     : Primitive(pSceneObject)
 {
-    mVertices[0] = v0;
-    mVertices[1] = v1;
-    mVertices[2] = v2;
-    Vector3f edge1 = mVertices[1] - mVertices[0];
-    Vector3f edge2 = mVertices[2] - mVertices[0];
+    Matrix4x4 worldMatrix = pSceneObject->GetObjectToWorld();
+ 
+    for (int i = 0; i < 3; i++)
+    {
+        mPositions[i] = Vector3f(worldMatrix * Vector4f(positions[i], 1.0f));
+        mTexCoords[i] = uvs[i];
+    }
+    
+    Vector3f edge1 = mPositions[1] - mPositions[0];
+    Vector3f edge2 = mPositions[2] - mPositions[0];
     mNormal = glm::normalize(glm::cross(edge1, edge2));
     mArea = 0.5f * glm::length(glm::cross(edge1, edge2));
 }
@@ -18,9 +23,9 @@ bool Triangle::Intersect(Ray ray, Intersection& isect) const
 {
     Ray r = m_pSceneObject->GetWorldToObject() * ray;
 
-    Vector3f p0 = mVertices[0];
-    Vector3f p1 = mVertices[1];
-    Vector3f p2 = mVertices[2];
+    Vector3f p0 = mPositions[0];
+    Vector3f p1 = mPositions[1];
+    Vector3f p2 = mPositions[2];
     
     Vector3f e1 = p1 - p0;
     Vector3f e2 = p2 - p0;
@@ -47,13 +52,14 @@ bool Triangle::Intersect(Ray ray, Intersection& isect) const
     Vector3f p = r.origin + t * r.direction;
     isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p, 1.0f));
     isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(mNormal, 0.0f)));
+    isect.uv = b0 * mTexCoords[0] + b1 * mTexCoords[1] + b2 * mTexCoords[2];
     isect.t = t;
     return true;
 }
 
 void Triangle::Sample(Vector3f& p, Vector3f& normal, float& pdf) const
 {
-    p = UniformRandomTriangle(mVertices[0], mVertices[1], mVertices[2]);
+    p = UniformRandomTriangle(mPositions[0], mPositions[1], mPositions[2]);
     normal = mNormal;
     pdf = 1.0f / mArea;
 }

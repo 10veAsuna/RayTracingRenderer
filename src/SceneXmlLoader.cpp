@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
 #include <initializer_list>
 #include <iostream>
 #include <set>
@@ -16,6 +17,18 @@
 namespace
 {
     using tinyxml2::XMLElement;
+
+    // Keep ownership in the loader adapter; rendering materials only borrow the map.
+    template<typename T>
+    class MaterialWithAlbedoMap final : public T
+    {
+    public:
+        template<typename... Args>
+        MaterialWithAlbedoMap(const Color& albedo, std::unique_ptr<Texture> map, Args&&... args)
+            : T(albedo, map.get(), std::forward<Args>(args)...), mMap(std::move(map)) {}
+    private:
+        std::unique_ptr<Texture> mMap;
+    };
 
     std::runtime_error SceneError(const XMLElement* element, const std::string& message)
     {
@@ -59,6 +72,20 @@ namespace
         {
             throw SceneError(element, "attribute '" + std::string(name) + "' must contain three finite numbers");
         }
+        return value;
+    }
+
+    Vector2f ReadVector2(const XMLElement* element, const char* name)
+    {
+        const char* text = element->Attribute(name);
+        if (!text)
+            throw SceneError(element, "missing attribute '" + std::string(name) + "'");
+
+        std::istringstream input(text);
+        Vector2f value;
+        if (!(input >> value.x >> value.y) || !(input >> std::ws).eof() ||
+            !std::isfinite(value.x) || !std::isfinite(value.y))
+            throw SceneError(element, "attribute '" + std::string(name) + "' must contain two finite numbers");
         return value;
     }
 
@@ -151,7 +178,31 @@ namespace
         return camera;
     }
 
-    void CreateLambertMaterial(const XMLElement* element, Scene& scene, const std::string& name, const Color& albedo)
+    std::unique_ptr<Texture> LoadAlbedoMap(const XMLElement* element, const std::string& filename,
+        const std::filesystem::path& sceneDirectory)
+    {
+        if (filename.empty()) return nullptr;
+        const std::filesystem::path requested(filename);
+        std::vector<std::filesystem::path> candidates;
+        if (requested.is_absolute()) candidates.push_back(requested);
+        else
+        {
+            candidates.push_back(sceneDirectory / requested);
+            candidates.push_back(sceneDirectory / "Texture" / requested);
+            candidates.push_back(sceneDirectory / "texture" / requested);
+        }
+        for (const auto& candidate : candidates)
+        {
+            if (!std::filesystem::is_regular_file(candidate)) continue;
+            std::unique_ptr<Texture> texture(Texture::CreateFromFile(candidate.string()));
+            if (!texture) throw SceneError(element, "cannot decode albedo map '" + candidate.string() + "'");
+            return texture;
+        }
+        throw SceneError(element, "cannot find albedo map '" + filename + "' relative to '" + sceneDirectory.string() + "' or its Texture/texture directory");
+    }
+
+    void CreateLambertMaterial(const XMLElement* element, Scene& scene, const std::string& name,
+        const Color& albedo, const std::string& mapName, const std::filesystem::path& sceneDirectory)
     {
         if (scene.GetMaterial(name))
         {
@@ -161,12 +212,13 @@ namespace
         {
             throw SceneError(element, "albedo components must be between 0 and 1");
         }
-        scene.CreateMaterial<LambertMaterial>(name, albedo);
+        scene.CreateMaterial<MaterialWithAlbedoMap<LambertMaterial>>(name, albedo,
+            LoadAlbedoMap(element, mapName, sceneDirectory));
     }
 
-    void ParseMaterial(const XMLElement* element, Scene& scene)
+    void ParseMaterial(const XMLElement* element, Scene& scene, const std::filesystem::path& sceneDirectory)
     {
-        CheckAttributes(element, { "name", "type", "albedo" });
+        CheckAttributes(element, { "name", "type", "albedo", "albedoMap" });
         CheckNoChildren(element);
 
         const char* name = element->Attribute("name");
@@ -184,7 +236,11 @@ namespace
             throw SceneError(element, "unsupported material type '" + std::string(type) + "'");
         }
 
-        CreateLambertMaterial(element, scene, name, ReadVector3(element, "albedo"));
+        const char* mapName = element->Attribute("albedoMap");
+        if (mapName && std::string(mapName).find_first_not_of(" \t\r\n") == std::string::npos)
+            throw SceneError(element, "'albedoMap' must not be empty");
+        CreateLambertMaterial(element, scene, name, ReadVector3(element, "albedo"),
+            mapName ? mapName : "", sceneDirectory);
     }
 
     void ParseObject(const XMLElement* element, Scene& scene)
@@ -218,7 +274,7 @@ namespace
             CheckNoChildren(primitive);
             if (type == "triangle")
             {
-                CheckAttributes(primitive, { "v0", "v1", "v2" });
+                CheckAttributes(primitive, { "v0", "v1", "v2", "uv0", "uv1", "uv2" });
                 const Vector3f v0 = ReadVector3(primitive, "v0");
                 const Vector3f v1 = ReadVector3(primitive, "v1");
                 const Vector3f v2 = ReadVector3(primitive, "v2");
@@ -226,7 +282,15 @@ namespace
                 {
                     throw SceneError(primitive, "triangle vertices must not be collinear");
                 }
-                object->CreatePrimitive<Triangle>(v0, v1, v2);
+                const Vector3f positions[3] = { v0, v1, v2 };
+                Vector2f uvs[3] = { Vector2f(0, 0), Vector2f(1, 0), Vector2f(0, 1) };
+                if (primitive->Attribute("uv0") || primitive->Attribute("uv1") || primitive->Attribute("uv2"))
+                {
+                    uvs[0] = ReadVector2(primitive, "uv0");
+                    uvs[1] = ReadVector2(primitive, "uv1");
+                    uvs[2] = ReadVector2(primitive, "uv2");
+                }
+                object->CreatePrimitive<Triangle>(positions, uvs);
             }
             else if (type == "sphere")
             {
@@ -373,6 +437,43 @@ namespace
         return value;
     }
 
+    bool ReadTriangleVertex(const XMLElement* child, Vector3f& position, Vector2f& uv)
+    {
+        CheckAttributes(child, {});
+        CheckNoChildren(child);
+        if (!child->GetText()) throw SceneError(child, "expected x, y, z or x, y, z, u, v");
+        std::string text = child->GetText();
+        for (char& character : text)
+            if (character == ',') character = ' ';
+        std::istringstream input(text);
+        if (!(input >> position.x >> position.y >> position.z) ||
+            !std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z))
+            throw SceneError(child, "expected three finite position components");
+        if ((input >> std::ws).eof()) return false;
+        if (!(input >> uv.x >> uv.y) || !(input >> std::ws).eof() ||
+            !std::isfinite(uv.x) || !std::isfinite(uv.y))
+            throw SceneError(child, "expected exactly x, y, z, u, v with finite components");
+        return true;
+    }
+
+    Vector2f ReadElementVector2(const XMLElement* child)
+    {
+        CheckAttributes(child, {});
+        CheckNoChildren(child);
+        if (!child->GetText()) throw SceneError(child, "expected two finite numbers");
+        std::string text = child->GetText();
+        for (char& character : text)
+        {
+            if (character == ',') character = ' ';
+        }
+        std::istringstream input(text);
+        Vector2f value;
+        if (!(input >> value.x >> value.y) || !(input >> std::ws).eof() ||
+            !std::isfinite(value.x) || !std::isfinite(value.y))
+            throw SceneError(child, "expected two finite numbers");
+        return value;
+    }
+
     Vector3f ReadChildVector3(const XMLElement* element, const char* name)
     {
         return ReadElementVector3(RequireChildValue(element, name));
@@ -395,7 +496,8 @@ namespace
         return element->FirstChildElement(name) ? ReadChildFloat(element, name) : fallback;
     }
 
-    void ParseNestedMaterials(const XMLElement* element, Scene& scene)
+    void ParseNestedMaterials(const XMLElement* element, Scene& scene,
+        const std::filesystem::path& sceneDirectory)
     {
         CheckChildren(element, { "Material" }, false);
         for (const XMLElement* material = element->FirstChildElement(); material; material = material->NextSiblingElement())
@@ -404,12 +506,15 @@ namespace
             const std::string type = ReadChildText(material, "Type");
             if (type == "Lambert")
             {
-                CheckValueFields(material, { "Name", "Type", "Albedo" });
-                CreateLambertMaterial(material, scene, name, ReadChildVector3(material, "Albedo"));
+                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap" });
+                const std::string mapName = material->FirstChildElement("AlbedoMap") ?
+                    ReadChildText(material, "AlbedoMap") : "";
+                CreateLambertMaterial(material, scene, name, ReadChildVector3(material, "Albedo"),
+                    mapName, sceneDirectory);
             }
             else if (type == "OrenNayar")
             {
-                CheckValueFields(material, { "Name", "Type", "Albedo", "Sigma" });
+                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap", "Sigma" });
                 if (scene.GetMaterial(name))
                     throw SceneError(material, "duplicate material name '" + name + "'");
                 const Color albedo = ReadChildVector3(material, "Albedo");
@@ -419,7 +524,10 @@ namespace
                     throw SceneError(material, "<Albedo> components must be between 0 and 1");
                 if (sigma < 0.0f || sigma > PI * 0.5f)
                     throw SceneError(material, "<Sigma> must be between 0 and pi/2 radians");
-                scene.CreateMaterial<OrenNayarMaterial>(name, albedo, sigma);
+                const std::string mapName = material->FirstChildElement("AlbedoMap") ?
+                    ReadChildText(material, "AlbedoMap") : "";
+                scene.CreateMaterial<MaterialWithAlbedoMap<OrenNayarMaterial>>(name, albedo,
+                    LoadAlbedoMap(material, mapName, sceneDirectory), sigma);
             }
             else if (type == "ConductorSpecular" || type == "TorranceSparrow")
             {
@@ -622,7 +730,7 @@ namespace
                 {
                     std::string name = "__chapter05_default";
                     while (scene.GetMaterial(name)) name += "_";
-                    defaultMaterial = scene.CreateMaterial<LambertMaterial>(name, Color(0.8f));
+                    defaultMaterial = scene.CreateMaterial<LambertMaterial>(name, Color(0.8f), nullptr);
                 }
                 material = defaultMaterial;
             }
@@ -646,18 +754,34 @@ namespace
                 const std::string type = primitive->Name();
                 if (type == "Triangle")
                 {
-                    CheckChildren(primitive, { "Vertex" }, false);
+                    CheckChildren(primitive, { "Vertex", "UV" }, false);
                     Vector3f vertices[3];
+                    // Legacy scenes without UVs keep loading with a default mapping.
+                    Vector2f uvs[3] = { Vector2f(0, 0), Vector2f(1, 0), Vector2f(0, 1) };
                     int count = 0;
-                    for (const XMLElement* vertex = primitive->FirstChildElement(); vertex; vertex = vertex->NextSiblingElement())
+                    int inlineUVCount = 0;
+                    for (const XMLElement* vertex = primitive->FirstChildElement("Vertex"); vertex; vertex = vertex->NextSiblingElement("Vertex"))
                     {
                         if (count == 3) throw SceneError(primitive, "Triangle needs exactly three Vertex elements");
-                        vertices[count++] = ReadElementVector3(vertex);
+                        if (ReadTriangleVertex(vertex, vertices[count], uvs[count])) ++inlineUVCount;
+                        ++count;
                     }
                     if (count != 3) throw SceneError(primitive, "Triangle needs exactly three Vertex elements");
+                    if (inlineUVCount != 0 && inlineUVCount != 3)
+                        throw SceneError(primitive, "all three Vertex elements must use the same position/UV format");
+                    if (inlineUVCount && primitive->FirstChildElement("UV"))
+                        throw SceneError(primitive, "cannot combine inline vertex UVs with separate UV elements");
                     if (glm::length(glm::cross(vertices[1] - vertices[0], vertices[2] - vertices[0])) <= 1e-6f)
                         throw SceneError(primitive, "triangle vertices must not be collinear");
-                    object->CreatePrimitive<Triangle>(vertices[0], vertices[1], vertices[2]);
+                    int uvCount = 0;
+                    for (const XMLElement* uv = primitive->FirstChildElement("UV"); uv; uv = uv->NextSiblingElement("UV"))
+                    {
+                        if (uvCount == 3) throw SceneError(primitive, "Triangle needs exactly three UV elements when UVs are supplied");
+                        uvs[uvCount++] = ReadElementVector2(uv);
+                    }
+                    if (uvCount != 0 && uvCount != 3)
+                        throw SceneError(primitive, "Triangle needs exactly three UV elements when UVs are supplied");
+                    object->CreatePrimitive<Triangle>(vertices, uvs);
                 }
                 else
                 {
@@ -697,16 +821,17 @@ std::unique_ptr<Scene> LoadSceneFromXml(const std::string& path, int width, int 
     CheckAttributes(root, {});
 
     std::unique_ptr<Scene> scene(new Scene());
+    const std::filesystem::path sceneDirectory = std::filesystem::absolute(path).parent_path();
     for (const XMLElement* element = root->FirstChildElement(); element; element = element->NextSiblingElement())
     {
         const std::string type = element->Name();
         if (type == "material")
         {
-            ParseMaterial(element, *scene);
+            ParseMaterial(element, *scene, sceneDirectory);
         }
         else if (type == "Materials")
         {
-            ParseNestedMaterials(element, *scene);
+            ParseNestedMaterials(element, *scene, sceneDirectory);
         }
     }
 

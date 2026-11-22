@@ -24,6 +24,7 @@ struct Intersection
 {
     Vector3f position;
     Vector3f normal;
+    Vector2f uv;
     float t;
 };
 

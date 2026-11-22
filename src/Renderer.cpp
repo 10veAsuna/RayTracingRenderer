@@ -174,7 +174,7 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 				continue;
 			Vector3f wi = worldToLocal * shadowRay.direction;
 			float cosTheta = glm::dot(isect.normal, shadowRay.direction);
-			Color brdf = pMaterial->BRDF(wo, wi);
+			Color brdf = pMaterial->BRDF(isect.uv, wo, wi);
 			Lo += brdf * L * glm::max(cosTheta, 0.0f) / std::max(1e-4f, pdf);
 		}
 	}
@@ -182,9 +182,9 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 	//反射
 	{
 		float pdf;
-		Vector3f wi = pMaterial->SampleWi(wo, pdf);
+		Vector3f wi = pMaterial->SampleWi(isect.uv, wo, pdf);
 	
-		Color brdf = pMaterial->BRDF(wo, wi);
+		Color brdf = pMaterial->BRDF(isect.uv, wo, wi);
 		Ray r;
 		r.direction = localToWorld * wi;
 		r.origin = isect.position;

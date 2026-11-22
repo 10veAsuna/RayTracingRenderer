@@ -39,10 +39,17 @@ bool Sphere::Intersect(Ray ray, Intersection& isect) const
     Vector3f p = r.origin + t * r.direction; //交点位置（局部空间）
     Vector3f n = glm::normalize(p);
     
+    float theta = std::acosf(n.z);
+    float phi = std::atan2f(p.y, p.x);
+    if (phi < 0.0f)
+        phi += 2.0f * PI;
+    isect.uv.x = phi * INV_PI * 0.5f;
+    isect.uv.y = theta * INV_PI;
+    
     isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p , 1.0f)); //交点位置世界坐标   
     isect.normal = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(n , 0.0f));
-    
     isect.t = t;
+    
     return true;
 }
 
