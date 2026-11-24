@@ -142,6 +142,17 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 	
 	Color Lo = Color(0.0f, 0.0f, 0.0f);
 	
+	Matrix3x3 TBN = MakeCoordinateSystem(isect.normal, isect.tangent);
+	Vector3f shadingNormal = isect.normal;
+	if (pMaterial->GetNormalMap())
+	{
+		float bumpScale = pMaterial->GetBumpScale();
+		Vector3f n = pMaterial->GetNormalMap()->Sample<Color>(isect.uv) * 2.0f - 1.0f;
+		n = glm::mix(Vector3f(0.0f, 0.0f, 1.0f), n, bumpScale);
+		n = glm::normalize(n);
+		shadingNormal = TBN * n;
+		
+	}
 	Matrix3x3 localToWorld = MakeCoordinateSystem(isect.normal);
 	Matrix3x3 worldToLocal = glm::inverse(localToWorld);
 	Vector3f wo = worldToLocal * (-ray.direction);
@@ -173,7 +184,8 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 			if (mScene->Intersect(shadowRay, shadowIsect))
 				continue;
 			Vector3f wi = worldToLocal * shadowRay.direction;
-			float cosTheta = glm::dot(isect.normal, shadowRay.direction);
+			//float cosTheta = glm::dot(isect.normal, shadowRay.direction);
+			float cosTheta = glm::dot(shadingNormal, shadowRay.direction);
 			Color brdf = pMaterial->BRDF(isect.uv, wo, wi);
 			Lo += brdf * L * glm::max(cosTheta, 0.0f) / std::max(1e-4f, pdf);
 		}
@@ -189,8 +201,14 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 		r.direction = localToWorld * wi;
 		r.origin = isect.position;
 		r.mint = 1e-4f;
-		Color Li = GetRadiance(r, depth + 1, pMaterial->IsSpecular());
-		Lo += brdf * Li * std::fabs(wi.z) / std::max(1e-4f, pdf);
+		
+		float cosTheta = glm::dot(shadingNormal, r.direction);
+		if (wi.z * cosTheta > 0.0f)
+		{
+			Color Li = GetRadiance(r, depth + 1, pMaterial->IsSpecular());
+			Lo += brdf * Li * std::fabs(cosTheta) / std::max(1e-4f, pdf);
+		}
+			
 	}
 	//折射
 	{

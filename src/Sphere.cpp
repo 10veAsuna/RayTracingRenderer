@@ -50,6 +50,13 @@ bool Sphere::Intersect(Ray ray, Intersection& isect) const
     isect.normal = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(n , 0.0f));
     isect.t = t;
     
+    Vector3f dpdu(-p.y, p.x, 0.0f);
+    // Longitude is undefined at either pole; choose a valid limiting tangent.
+    if (glm::dot(dpdu, dpdu) <= 1e-12f)
+        dpdu = Vector3f(1.0f, 0.0f, 0.0f);
+    isect.tangent = m_pSceneObject->GetObjectToWorld() * Vector4f(dpdu, 0.0f);
+    isect.tangent = glm::normalize(isect.tangent);
+    
     return true;
 }
 

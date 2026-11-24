@@ -35,6 +35,13 @@ bool Disk::Intersect(Ray ray, Intersection& isect) const
     isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p , 1.0f)); //交点位置世界坐标
     isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(0.0f, 0.0f, 1.0f, 0.0f)));
     isect.t = t;
+    
+    Vector3f dpdu(-p.y, p.x, 0.0f);
+    // Polar UVs have no unique angular tangent at the disk center.
+    if (glm::dot(dpdu, dpdu) <= 1e-12f)
+        dpdu = Vector3f(1.0f, 0.0f, 0.0f);
+    isect.tangent = m_pSceneObject->GetObjectToWorld() * Vector4f(dpdu, 0.0f);
+    isect.tangent = glm::normalize(isect.tangent);
     return true;
 }
 

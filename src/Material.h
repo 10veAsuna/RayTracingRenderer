@@ -13,6 +13,16 @@ public:
     virtual bool SampleWt(const Vector3f& wo, Vector3f& wt) const  {return false;}
     virtual ~Material() = default;
     virtual Vector3f SampleWi(Vector2f uv, const Vector3f& wo, float& pdf) const {return Vector3f(0.0f, 0.0f, 0.0f);};
+
+    void SetNormalMap(Texture* pNormalMap) {mNormalMap = pNormalMap;}
+    void SetBumpScale(float scale) {mBumpScale = scale;}
+    Texture* GetNormalMap() const {return mNormalMap;}
+    const float GetBumpScale() const {return mBumpScale;}
+
+
+private:
+    Texture* mNormalMap = nullptr;
+    float mBumpScale = 1.0f;
 };
 
 //兰伯特

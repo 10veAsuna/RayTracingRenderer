@@ -54,6 +54,8 @@ add_library(MyRenderCore STATIC
     src/Sphere.h
     src/Triangle.cpp
     src/Triangle.h
+    src/Texture.cpp
+    src/Texture.h
 )
 target_include_directories(MyRenderCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(MyRenderCore PUBLIC glm stb_image PRIVATE tinyxml2)
@@ -65,11 +67,17 @@ add_executable(MyRender
     scenes/scene08.xml
     scenes/scene09.xml
     scenes/scene_area_light.xml
-        src/Texture.h
-        src/Texture.cpp
+    scenes/scene17.xml
 )
 target_link_libraries(MyRender PRIVATE MyRenderCore minifb::minifb)
 
 configure_file(scenes/scene08.xml scenes/scene08.xml COPYONLY)
 configure_file(scenes/scene09.xml scenes/scene09.xml COPYONLY)
 configure_file(scenes/scene_area_light.xml scenes/scene_area_light.xml COPYONLY)
+
+# Preserve scene-relative texture paths when starting from the build directory.
+file(GLOB_RECURSE MYRENDER_SCENE_FILES CONFIGURE_DEPENDS
+    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "scenes/*.xml" "scenes/Texture/*")
+foreach(scene_file IN LISTS MYRENDER_SCENE_FILES)
+    configure_file("${scene_file}" "${scene_file}" COPYONLY)
+endforeach()

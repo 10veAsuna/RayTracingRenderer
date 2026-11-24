@@ -18,16 +18,27 @@ namespace
 {
     using tinyxml2::XMLElement;
 
-    // Keep ownership in the loader adapter; rendering materials only borrow the map.
+    // Keep ownership in the loader adapter; rendering materials only borrow maps.
+    struct MaterialTextureMaps
+    {
+        std::unique_ptr<Texture> albedo;
+        std::unique_ptr<Texture> normal;
+        float bumpScale = 1.0f;
+    };
+
     template<typename T>
-    class MaterialWithAlbedoMap final : public T
+    class MaterialWithTextureMaps final : public T
     {
     public:
         template<typename... Args>
-        MaterialWithAlbedoMap(const Color& albedo, std::unique_ptr<Texture> map, Args&&... args)
-            : T(albedo, map.get(), std::forward<Args>(args)...), mMap(std::move(map)) {}
+        MaterialWithTextureMaps(MaterialTextureMaps maps, Args&&... args)
+            : T(std::forward<Args>(args)...), mMaps(std::move(maps))
+        {
+            this->SetNormalMap(mMaps.normal.get());
+            this->SetBumpScale(mMaps.bumpScale);
+        }
     private:
-        std::unique_ptr<Texture> mMap;
+        MaterialTextureMaps mMaps;
     };
 
     std::runtime_error SceneError(const XMLElement* element, const std::string& message)
@@ -178,8 +189,8 @@ namespace
         return camera;
     }
 
-    std::unique_ptr<Texture> LoadAlbedoMap(const XMLElement* element, const std::string& filename,
-        const std::filesystem::path& sceneDirectory)
+    std::unique_ptr<Texture> LoadTextureMap(const XMLElement* element, const std::string& filename,
+        const std::filesystem::path& sceneDirectory, const char* mapKind)
     {
         if (filename.empty()) return nullptr;
         const std::filesystem::path requested(filename);
@@ -195,14 +206,28 @@ namespace
         {
             if (!std::filesystem::is_regular_file(candidate)) continue;
             std::unique_ptr<Texture> texture(Texture::CreateFromFile(candidate.string()));
-            if (!texture) throw SceneError(element, "cannot decode albedo map '" + candidate.string() + "'");
+            if (!texture) throw SceneError(element, "cannot decode " + std::string(mapKind) + " map '" + candidate.string() + "'");
             return texture;
         }
-        throw SceneError(element, "cannot find albedo map '" + filename + "' relative to '" + sceneDirectory.string() + "' or its Texture/texture directory");
+        throw SceneError(element, "cannot find " + std::string(mapKind) + " map '" + filename + "' relative to '" + sceneDirectory.string() + "' or its Texture/texture directory");
+    }
+
+    MaterialTextureMaps LoadMaterialMaps(const XMLElement* element,
+        const std::filesystem::path& sceneDirectory, const std::string& albedoName,
+        const std::string& normalName, float bumpScale)
+    {
+        if (!std::isfinite(bumpScale) || bumpScale < 0.0f)
+            throw SceneError(element, "BumpScale must be finite and nonnegative");
+        MaterialTextureMaps maps;
+        maps.albedo = LoadTextureMap(element, albedoName, sceneDirectory, "albedo");
+        maps.normal = LoadTextureMap(element, normalName, sceneDirectory, "normal");
+        maps.bumpScale = bumpScale;
+        return maps;
     }
 
     void CreateLambertMaterial(const XMLElement* element, Scene& scene, const std::string& name,
-        const Color& albedo, const std::string& mapName, const std::filesystem::path& sceneDirectory)
+        const Color& albedo, const std::string& mapName, const std::filesystem::path& sceneDirectory,
+        const std::string& normalMapName = "", float bumpScale = 1.0f)
     {
         if (scene.GetMaterial(name))
         {
@@ -212,13 +237,14 @@ namespace
         {
             throw SceneError(element, "albedo components must be between 0 and 1");
         }
-        scene.CreateMaterial<MaterialWithAlbedoMap<LambertMaterial>>(name, albedo,
-            LoadAlbedoMap(element, mapName, sceneDirectory));
+        MaterialTextureMaps maps = LoadMaterialMaps(element, sceneDirectory, mapName, normalMapName, bumpScale);
+        Texture* albedoMap = maps.albedo.get();
+        scene.CreateMaterial<MaterialWithTextureMaps<LambertMaterial>>(name, std::move(maps), albedo, albedoMap);
     }
 
     void ParseMaterial(const XMLElement* element, Scene& scene, const std::filesystem::path& sceneDirectory)
     {
-        CheckAttributes(element, { "name", "type", "albedo", "albedoMap" });
+        CheckAttributes(element, { "name", "type", "albedo", "albedoMap", "normalMap", "bumpScale" });
         CheckNoChildren(element);
 
         const char* name = element->Attribute("name");
@@ -239,8 +265,12 @@ namespace
         const char* mapName = element->Attribute("albedoMap");
         if (mapName && std::string(mapName).find_first_not_of(" \t\r\n") == std::string::npos)
             throw SceneError(element, "'albedoMap' must not be empty");
+        const char* normalMapName = element->Attribute("normalMap");
+        if (normalMapName && std::string(normalMapName).find_first_not_of(" \t\r\n") == std::string::npos)
+            throw SceneError(element, "'normalMap' must not be empty");
+        const float bumpScale = element->Attribute("bumpScale") ? ReadFloat(element, "bumpScale") : 1.0f;
         CreateLambertMaterial(element, scene, name, ReadVector3(element, "albedo"),
-            mapName ? mapName : "", sceneDirectory);
+            mapName ? mapName : "", sceneDirectory, normalMapName ? normalMapName : "", bumpScale);
     }
 
     void ParseObject(const XMLElement* element, Scene& scene)
@@ -504,17 +534,21 @@ namespace
         {
             const std::string name = ReadChildText(material, "Name");
             const std::string type = ReadChildText(material, "Type");
+            const std::string normalMapName = material->FirstChildElement("NormalMap") ?
+                ReadChildText(material, "NormalMap") : "";
+            const float bumpScale = ReadOptionalChildFloat(material, "BumpScale", 1.0f);
+            if (bumpScale < 0.0f) throw SceneError(material, "<BumpScale> must be nonnegative");
             if (type == "Lambert")
             {
-                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap" });
+                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap", "NormalMap", "BumpScale" });
                 const std::string mapName = material->FirstChildElement("AlbedoMap") ?
                     ReadChildText(material, "AlbedoMap") : "";
                 CreateLambertMaterial(material, scene, name, ReadChildVector3(material, "Albedo"),
-                    mapName, sceneDirectory);
+                    mapName, sceneDirectory, normalMapName, bumpScale);
             }
             else if (type == "OrenNayar")
             {
-                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap", "Sigma" });
+                CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap", "Sigma", "NormalMap", "BumpScale" });
                 if (scene.GetMaterial(name))
                     throw SceneError(material, "duplicate material name '" + name + "'");
                 const Color albedo = ReadChildVector3(material, "Albedo");
@@ -526,15 +560,16 @@ namespace
                     throw SceneError(material, "<Sigma> must be between 0 and pi/2 radians");
                 const std::string mapName = material->FirstChildElement("AlbedoMap") ?
                     ReadChildText(material, "AlbedoMap") : "";
-                scene.CreateMaterial<MaterialWithAlbedoMap<OrenNayarMaterial>>(name, albedo,
-                    LoadAlbedoMap(material, mapName, sceneDirectory), sigma);
+                MaterialTextureMaps maps = LoadMaterialMaps(material, sceneDirectory, mapName, normalMapName, bumpScale);
+                Texture* albedoMap = maps.albedo.get();
+                scene.CreateMaterial<MaterialWithTextureMaps<OrenNayarMaterial>>(name, std::move(maps), albedo, albedoMap, sigma);
             }
             else if (type == "ConductorSpecular" || type == "TorranceSparrow")
             {
                 if (type == "TorranceSparrow")
-                    CheckValueFields(material, { "Name", "Type", "Exponent", "Eta", "AbsorptionCoef", "ReflectionColor" });
+                    CheckValueFields(material, { "Name", "Type", "Exponent", "Eta", "AbsorptionCoef", "ReflectionColor", "NormalMap", "BumpScale" });
                 else
-                    CheckValueFields(material, { "Name", "Type", "Eta", "AbsorptionCoef", "ReflectionColor" });
+                    CheckValueFields(material, { "Name", "Type", "Eta", "AbsorptionCoef", "ReflectionColor", "NormalMap", "BumpScale" });
                 if (scene.GetMaterial(name))
                 {
                     throw SceneError(material, "duplicate material name '" + name + "'");
@@ -562,14 +597,17 @@ namespace
                     const float exponent = ReadChildFloat(material, "Exponent");
                     if (exponent < 0.0f)
                         throw SceneError(material, "<Exponent> must be nonnegative");
-                    scene.CreateMaterial<TorranceSparrowMaterial>(name, exponent, eta, absorption, reflection);
+                    scene.CreateMaterial<MaterialWithTextureMaps<TorranceSparrowMaterial>>(name,
+                        LoadMaterialMaps(material, sceneDirectory, "", normalMapName, bumpScale),
+                        exponent, eta, absorption, reflection);
                 }
                 else
-                    scene.CreateMaterial<ConductorSpecularMaterial>(name, eta, absorption, reflection);
+                    scene.CreateMaterial<MaterialWithTextureMaps<ConductorSpecularMaterial>>(name,
+                        LoadMaterialMaps(material, sceneDirectory, "", normalMapName, bumpScale), eta, absorption, reflection);
             }
             else if (type == "DielectricSpecular")
             {
-                CheckValueFields(material, { "Name", "Type", "Eta", "TransmissionColor" });
+                CheckValueFields(material, { "Name", "Type", "Eta", "TransmissionColor", "NormalMap", "BumpScale" });
                 if (scene.GetMaterial(name))
                 {
                     throw SceneError(material, "duplicate material name '" + name + "'");
@@ -587,7 +625,8 @@ namespace
                     throw SceneError(material, "<TransmissionColor> components must be between 0 and 1");
                 }
 
-                scene.CreateMaterial<DielectricSpecularMaterial>(name, eta, transmission);
+                scene.CreateMaterial<MaterialWithTextureMaps<DielectricSpecularMaterial>>(name,
+                    LoadMaterialMaps(material, sceneDirectory, "", normalMapName, bumpScale), eta, transmission);
             }
             else
             {

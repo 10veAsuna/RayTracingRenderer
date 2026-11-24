@@ -1,0 +1,225 @@
+<!-- Based on FortuneRenderer/scenes/scene17.xml (Chapter17: tangent-space normal mapping).
+     https://github.com/woyaofacai/FortuneRenderer/blob/main/scenes/scene17.xml
+     Triangle transforms are baked into positions for MyRender's current Triangle implementation.
+     Positions retain the float precision of the reference transforms, including rotation residuals.
+     Camera, materials, light, sphere placement and UV tiling match the reference scene. -->
+<Scene>
+    <Camera>
+        <Position>0, 0.64, -2.58</Position>
+        <Target>0, 0.61, 3</Target>
+        <Up>0, 1, 0</Up>
+        <NearZ>0.1</NearZ>
+        <FarZ>1000</FarZ>
+        <Fov>45</Fov>
+    </Camera>
+    <Materials>
+        <Material>
+            <Name>M_Lambert_Red</Name>
+            <Type>Lambert</Type>
+            <Albedo>1, 0.3, 0.3</Albedo>
+        </Material>
+        <Material>
+            <Name>M_Lambert_Blue</Name>
+            <Type>Lambert</Type>
+            <Albedo>0.3, 0.3, 1</Albedo>
+        </Material>
+        <Material>
+            <Name>M_Lambert_Gray</Name>
+            <Type>Lambert</Type>
+            <Albedo>0.8, 0.8, 0.8</Albedo>
+        </Material>
+        <Material>
+            <Name>M_OrenNayar_Cement</Name>
+            <Type>OrenNayar</Type>
+            <Albedo>0.8, 0.8, 0.8</Albedo>
+            <AlbedoMap>Texture/painted_cement_albedo.png</AlbedoMap>
+            <NormalMap>Texture/painted_cement_normal.png</NormalMap>
+            <BumpScale>1</BumpScale>
+            <Sigma>0.5</Sigma>
+        </Material>
+        <Material>
+            <Name>M_Glass_Sphere</Name>
+            <Type>DielectricSpecular</Type>
+            <Eta>1.5</Eta>
+            <TransmissionColor>1, 1, 1</TransmissionColor>
+        </Material>
+        <Material>
+            <Name>M_Lambert_Tile</Name>
+            <Type>Lambert</Type>
+            <Albedo>1, 1, 1</Albedo>
+            <AlbedoMap>Texture/tile_albedo.png</AlbedoMap>
+            <NormalMap>Texture/tile_normal.png</NormalMap>
+            <BumpScale>1</BumpScale>
+        </Material>
+        <Material>
+            <Name>M_OrenNayar_Wood</Name>
+            <Type>OrenNayar</Type>
+            <Albedo>1, 1, 1</Albedo>
+            <AlbedoMap>Texture/wood_albedo.png</AlbedoMap>
+            <NormalMap>Texture/wood_normal.png</NormalMap>
+            <BumpScale>2</BumpScale>
+            <Sigma>0.3</Sigma>
+        </Material>
+    </Materials>
+    <SceneObjects>
+        <!-- Ceiling emitter: world-space vertices, normal points down. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Gray</Material>
+            <Emissive>10, 10, 10</Emissive>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-0.400000006, 1.49899995, -0.300000012, 0, 1</Vertex>
+                    <Vertex>0.400000006, 1.49899995, -0.300000012, 1, 1</Vertex>
+                    <Vertex>0.400000006, 1.49899995, 0.300000012, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-0.400000006, 1.49899995, -0.300000012, 0, 1</Vertex>
+                    <Vertex>0.400000006, 1.49899995, 0.300000012, 1, 0</Vertex>
+                    <Vertex>-0.400000006, 1.49899995, 0.300000012, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+        <!-- Left: textured rough diffuse sphere. -->
+        <SceneObject>
+            <Transform>
+                <Position>-0.4, 0.3, 0.3</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_OrenNayar_Cement</Material>
+            <Primitives>
+                <Sphere><Radius>0.3</Radius></Sphere>
+            </Primitives>
+        </SceneObject>
+        <!-- Right: wood sphere, rotated 90 degrees about X as in the tutorial. -->
+        <SceneObject>
+            <Transform>
+                <Position>0.4, 0.3, -0.3</Position>
+                <Rotation>90, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_OrenNayar_Wood</Material>
+            <Primitives>
+                <Sphere><Radius>0.3</Radius></Sphere>
+            </Primitives>
+        </SceneObject>
+        <!-- Floor: one full tile texture, matching scene17. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Tile</Material>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-1, 4.37113883e-08, 1, 0, 1</Vertex>
+                    <Vertex>1, 4.37113883e-08, 1, 1, 1</Vertex>
+                    <Vertex>1, -4.37113883e-08, -1, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-1, 4.37113883e-08, 1, 0, 1</Vertex>
+                    <Vertex>1, -4.37113883e-08, -1, 1, 0</Vertex>
+                    <Vertex>-1, -4.37113883e-08, -1, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+        <!-- Ceiling. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Tile</Material>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-1, 1.5, -1, 0, 1</Vertex>
+                    <Vertex>1, 1.5, -1, 1, 1</Vertex>
+                    <Vertex>1, 1.5, 1, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-1, 1.5, -1, 0, 1</Vertex>
+                    <Vertex>1, 1.5, 1, 1, 0</Vertex>
+                    <Vertex>-1, 1.5, 1, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+        <!-- Left red wall. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Red</Material>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-0.99999994, 0, 1, 0, 1</Vertex>
+                    <Vertex>-1, 0, -1, 1, 1</Vertex>
+                    <Vertex>-1, 1.5, -1, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-0.99999994, 0, 1, 0, 1</Vertex>
+                    <Vertex>-1, 1.5, -1, 1, 0</Vertex>
+                    <Vertex>-0.99999994, 1.5, 1, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+        <!-- Right blue wall. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Blue</Material>
+            <Primitives>
+                <Triangle>
+                    <Vertex>1, 0, -1, 0, 1</Vertex>
+                    <Vertex>0.99999994, 0, 1, 1, 1</Vertex>
+                    <Vertex>0.99999994, 1.5, 1, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>1, 0, -1, 0, 1</Vertex>
+                    <Vertex>0.99999994, 1.5, 1, 1, 0</Vertex>
+                    <Vertex>1, 1.5, -1, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+        <!-- Back tile wall. -->
+        <SceneObject>
+            <Transform>
+                <Position>0, 0, 0</Position>
+                <Rotation>0, 0, 0</Rotation>
+                <Scale>1</Scale>
+            </Transform>
+            <Material>M_Lambert_Tile</Material>
+            <Primitives>
+                <Triangle>
+                    <Vertex>-1, 1.5, 1.00000012, 0, 1</Vertex>
+                    <Vertex>1, 1.5, 1.00000012, 1, 1</Vertex>
+                    <Vertex>1, 0, 0.99999994, 1, 0</Vertex>
+                </Triangle>
+                <Triangle>
+                    <Vertex>-1, 1.5, 1.00000012, 0, 1</Vertex>
+                    <Vertex>1, 0, 0.99999994, 1, 0</Vertex>
+                    <Vertex>-1, 0, 0.99999994, 0, 0</Vertex>
+                </Triangle>
+            </Primitives>
+        </SceneObject>
+    </SceneObjects>
+    <Lights>
+        <!-- Front fill light from the tutorial's scene17. -->
+        <PointLight>
+            <Position>0, 0.75, -0.95</Position>
+            <Intensity>1, 1, 1</Intensity>
+            <Attenuations>1, 0, 0</Attenuations>
+        </PointLight>
+    </Lights>
+</Scene>
