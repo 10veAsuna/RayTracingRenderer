@@ -48,6 +48,7 @@ bool Sphere::Intersect(Ray ray, Intersection& isect) const
     
     isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p , 1.0f)); //交点位置世界坐标   
     isect.normal = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(n , 0.0f));
+    isect.shadingNormal = isect.normal;
     isect.t = t;
     
     Vector3f dpdu(-p.y, p.x, 0.0f);

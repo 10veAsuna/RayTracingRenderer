@@ -36,6 +36,8 @@ public:
     Color GetEmissive() const { return mEmissive; }
     
     void Sample(Vector3f& p, Vector3f& normal, float& pdf);
+    
+    void CreatePrimitivesFromMesh(const std::string& meshFilePath);
 private:
     Matrix4x4 mObjectToWorld;
     Matrix4x4 mWorldToObject;

@@ -23,6 +23,8 @@ namespace
     {
         std::unique_ptr<Texture> albedo;
         std::unique_ptr<Texture> normal;
+        std::unique_ptr<Texture> roughness;
+        std::unique_ptr<Texture> metallic;
         float bumpScale = 1.0f;
     };
 
@@ -242,9 +244,32 @@ namespace
         scene.CreateMaterial<MaterialWithTextureMaps<LambertMaterial>>(name, std::move(maps), albedo, albedoMap);
     }
 
+    void CreateCookTorranceMaterial(const XMLElement* element, Scene& scene, const std::string& name,
+        const Color& albedo, float roughness, float metallic, const std::string& albedoName,
+        const std::string& normalName, float bumpScale, const std::filesystem::path& sceneDirectory,
+        const std::string& roughnessName = "", const std::string& metallicName = "")
+    {
+        if (scene.GetMaterial(name))
+            throw SceneError(element, "duplicate material name '" + name + "'");
+        if (glm::any(glm::lessThan(albedo, Color(0.0f))) ||
+            glm::any(glm::greaterThan(albedo, Color(1.0f))))
+            throw SceneError(element, "CookTorrance Albedo components must be between 0 and 1");
+        if (roughness < 0.0f || roughness > 1.0f)
+            throw SceneError(element, "CookTorrance Roughness must be between 0 and 1");
+        if (metallic < 0.0f || metallic > 1.0f)
+            throw SceneError(element, "CookTorrance Metallic must be between 0 and 1");
+        MaterialTextureMaps maps = LoadMaterialMaps(element, sceneDirectory, albedoName, normalName, bumpScale);
+        maps.roughness = LoadTextureMap(element, roughnessName, sceneDirectory, "roughness");
+        maps.metallic = LoadTextureMap(element, metallicName, sceneDirectory, "metallic");
+        Texture* albedoMap = maps.albedo.get();
+        Texture* roughnessMap = maps.roughness.get();
+        Texture* metallicMap = maps.metallic.get();
+        scene.CreateMaterial<MaterialWithTextureMaps<CookTorranceMaterial>>(name,
+            std::move(maps), albedo, albedoMap, roughness, roughnessMap, metallic, metallicMap);
+    }
+
     void ParseMaterial(const XMLElement* element, Scene& scene, const std::filesystem::path& sceneDirectory)
     {
-        CheckAttributes(element, { "name", "type", "albedo", "albedoMap", "normalMap", "bumpScale" });
         CheckNoChildren(element);
 
         const char* name = element->Attribute("name");
@@ -257,10 +282,15 @@ namespace
         {
             throw SceneError(element, "material needs a 'type'");
         }
-        if (std::string(type) != "lambert")
+        const bool isCookTorrance = std::string(type) == "cooktorrance";
+        if (!isCookTorrance && std::string(type) != "lambert")
         {
             throw SceneError(element, "unsupported material type '" + std::string(type) + "'");
         }
+        if (isCookTorrance)
+            CheckAttributes(element, { "name", "type", "albedo", "albedoMap", "normalMap", "bumpScale", "roughness", "metallic", "roughnessMap", "metallicMap" });
+        else
+            CheckAttributes(element, { "name", "type", "albedo", "albedoMap", "normalMap", "bumpScale" });
 
         const char* mapName = element->Attribute("albedoMap");
         if (mapName && std::string(mapName).find_first_not_of(" \t\r\n") == std::string::npos)
@@ -269,8 +299,22 @@ namespace
         if (normalMapName && std::string(normalMapName).find_first_not_of(" \t\r\n") == std::string::npos)
             throw SceneError(element, "'normalMap' must not be empty");
         const float bumpScale = element->Attribute("bumpScale") ? ReadFloat(element, "bumpScale") : 1.0f;
-        CreateLambertMaterial(element, scene, name, ReadVector3(element, "albedo"),
-            mapName ? mapName : "", sceneDirectory, normalMapName ? normalMapName : "", bumpScale);
+        if (isCookTorrance)
+        {
+            const float roughness = element->Attribute("roughness") ? ReadFloat(element, "roughness") : 1.0f;
+            const float metallic = element->Attribute("metallic") ? ReadFloat(element, "metallic") : 0.0f;
+            const char* roughnessMap = element->Attribute("roughnessMap");
+            const char* metallicMap = element->Attribute("metallicMap");
+            if ((roughnessMap && std::string(roughnessMap).find_first_not_of(" \t\r\n") == std::string::npos) ||
+                (metallicMap && std::string(metallicMap).find_first_not_of(" \t\r\n") == std::string::npos))
+                throw SceneError(element, "roughnessMap and metallicMap must not be empty");
+            CreateCookTorranceMaterial(element, scene, name, ReadVector3(element, "albedo"),
+                roughness, metallic, mapName ? mapName : "", normalMapName ? normalMapName : "", bumpScale, sceneDirectory,
+                roughnessMap ? roughnessMap : "", metallicMap ? metallicMap : "");
+        }
+        else
+            CreateLambertMaterial(element, scene, name, ReadVector3(element, "albedo"),
+                mapName ? mapName : "", sceneDirectory, normalMapName ? normalMapName : "", bumpScale);
     }
 
     void ParseObject(const XMLElement* element, Scene& scene)
@@ -546,6 +590,18 @@ namespace
                 CreateLambertMaterial(material, scene, name, ReadChildVector3(material, "Albedo"),
                     mapName, sceneDirectory, normalMapName, bumpScale);
             }
+            else if (type == "CookTorrance")
+            {
+                CheckValueFields(material, { "Name", "Type", "Albedo", "Roughness", "Metallic", "AlbedoMap", "NormalMap", "BumpScale", "RoughnessMap", "MetallicMap" });
+                const std::string albedoName = material->FirstChildElement("AlbedoMap") ?
+                    ReadChildText(material, "AlbedoMap") : "";
+                CreateCookTorranceMaterial(material, scene, name, ReadChildVector3(material, "Albedo"),
+                    ReadOptionalChildFloat(material, "Roughness", 1.0f),
+                    ReadOptionalChildFloat(material, "Metallic", 0.0f),
+                    albedoName, normalMapName, bumpScale, sceneDirectory,
+                    material->FirstChildElement("RoughnessMap") ? ReadChildText(material, "RoughnessMap") : "",
+                    material->FirstChildElement("MetallicMap") ? ReadChildText(material, "MetallicMap") : "");
+            }
             else if (type == "OrenNayar")
             {
                 CheckValueFields(material, { "Name", "Type", "Albedo", "AlbedoMap", "Sigma", "NormalMap", "BumpScale" });
@@ -734,7 +790,8 @@ namespace
         return camera;
     }
 
-    void ParseNestedObjects(const XMLElement* elements, Scene& scene)
+    void ParseNestedObjects(const XMLElement* elements, Scene& scene,
+        const std::filesystem::path& sceneDirectory)
     {
         CheckChildren(elements, { "SceneObject" }, false);
         if (!elements->FirstChildElement()) throw SceneError(elements, "expected at least one SceneObject");
@@ -742,7 +799,7 @@ namespace
         Material* defaultMaterial = nullptr;
         for (const XMLElement* element = elements->FirstChildElement(); element; element = element->NextSiblingElement())
         {
-            CheckChildren(element, { "Transform", "Material", "Emissive", "Primitives" });
+            CheckChildren(element, { "Transform", "Material", "Emissive", "Primitives", "Mesh" });
             const XMLElement* transform = RequireChild(element, "Transform");
             CheckValueFields(transform, { "Position", "Rotation", "Scale" });
             const Vector3f position = transform->FirstChildElement("Position") ?
@@ -785,10 +842,39 @@ namespace
                 object->SetEmissive(emissive);
             }
 
-            const XMLElement* primitives = RequireChild(element, "Primitives");
-            CheckChildren(primitives, { "Sphere", "Disk", "Triangle" }, false);
-            if (!primitives->FirstChildElement()) throw SceneError(primitives, "expected at least one primitive");
-            for (const XMLElement* primitive = primitives->FirstChildElement(); primitive; primitive = primitive->NextSiblingElement())
+            const XMLElement* mesh = element->FirstChildElement("Mesh");
+            const XMLElement* primitives = element->FirstChildElement("Primitives");
+            if (!mesh && !primitives) throw SceneError(element, "expected <Mesh> or <Primitives>");
+            if (mesh)
+            {
+                const std::filesystem::path requested(ReadChildText(element, "Mesh"));
+                std::filesystem::path resolved;
+                for (const auto& candidate : { sceneDirectory / requested, sceneDirectory / "Mesh" / requested })
+                {
+                    if (std::filesystem::is_regular_file(candidate))
+                    {
+                        resolved = candidate;
+                        break;
+                    }
+                }
+                if (resolved.empty())
+                    throw SceneError(mesh, "cannot find mesh '" + requested.string() + "' relative to the scene or its Mesh directory");
+                try
+                {
+                    object->CreatePrimitivesFromMesh(resolved.string());
+                }
+                catch (const std::exception& error)
+                {
+                    throw SceneError(mesh, error.what());
+                }
+            }
+            if (primitives)
+            {
+                CheckChildren(primitives, { "Sphere", "Disk", "Triangle" }, false);
+                if (!primitives->FirstChildElement()) throw SceneError(primitives, "expected at least one primitive");
+            }
+            for (const XMLElement* primitive = primitives ? primitives->FirstChildElement() : nullptr;
+                 primitive; primitive = primitive->NextSiblingElement())
             {
                 const std::string type = primitive->Name();
                 if (type == "Triangle")
@@ -895,7 +981,7 @@ std::unique_ptr<Scene> LoadSceneFromXml(const std::string& path, int width, int 
         }
         else if (type == "SceneObjects")
         {
-            ParseNestedObjects(element, *scene);
+            ParseNestedObjects(element, *scene, sceneDirectory);
             hasObject = true;
         }
         else if (type == "light")

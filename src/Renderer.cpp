@@ -142,8 +142,8 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 	
 	Color Lo = Color(0.0f, 0.0f, 0.0f);
 	
-	Matrix3x3 TBN = MakeCoordinateSystem(isect.normal, isect.tangent);
-	Vector3f shadingNormal = isect.normal;
+	Matrix3x3 TBN = MakeCoordinateSystem(isect.shadingNormal, isect.tangent);
+	Vector3f shadingNormal = isect.shadingNormal;
 	if (pMaterial->GetNormalMap())
 	{
 		float bumpScale = pMaterial->GetBumpScale();
@@ -203,7 +203,7 @@ Color Renderer::GetRadiance(const Ray& ray, int depth, bool bPrevIsSpecular)
 		r.mint = 1e-4f;
 		
 		float cosTheta = glm::dot(shadingNormal, r.direction);
-		if (wi.z * cosTheta > 0.0f)
+        if (pdf > 0.0f && wi.z * cosTheta > 0.0f)
 		{
 			Color Li = GetRadiance(r, depth + 1, pMaterial->IsSpecular());
 			Lo += brdf * Li * std::fabs(cosTheta) / std::max(1e-4f, pdf);

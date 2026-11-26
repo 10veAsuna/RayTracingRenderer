@@ -2,7 +2,7 @@
 
 #include "SceneObject.h"
 
-Triangle::Triangle(SceneObject* pSceneObject, const Vector3f positions[3], const Vector2f uvs[3])
+Triangle::Triangle(SceneObject* pSceneObject, const Vector3f positions[3], const Vector2f uvs[3], const Vector3f normals[3])
     : Primitive(pSceneObject)
 {
     Matrix4x4 worldMatrix = pSceneObject->GetObjectToWorld();
@@ -10,6 +10,7 @@ Triangle::Triangle(SceneObject* pSceneObject, const Vector3f positions[3], const
     for (int i = 0; i < 3; i++)
     {
         mPositions[i] = Vector3f(worldMatrix * Vector4f(positions[i], 1.0f));
+
         mTexCoords[i] = uvs[i];
     }
     
@@ -33,12 +34,23 @@ Triangle::Triangle(SceneObject* pSceneObject, const Vector3f positions[3], const
         mTangent = (dv2 * edge1 - dv1 * edge2) / (det);
         mTangent = glm::normalize(mTangent);
     }
-
+    for (int i = 0; i < 3; ++i)
+    {
+        if (glm::dot(normals[i], normals[i]) < 1e-6f )
+        {
+            mNormals[i] = mNormal;
+        }
+        else
+        {
+            mNormals[i] = glm::normalize(Vector3f(worldMatrix * Vector4f(normals[i], 0.0f)));
+        }
+    }
 }
 
 bool Triangle::Intersect(Ray ray, Intersection& isect) const
 {
-    Ray r = m_pSceneObject->GetWorldToObject() * ray;
+    // The constructor stores world-space vertices, matching Chapter 18.
+    Ray r = ray;
 
     Vector3f p0 = mPositions[0];
     Vector3f p1 = mPositions[1];
@@ -67,8 +79,10 @@ bool Triangle::Intersect(Ray ray, Intersection& isect) const
         return false;
     
     Vector3f p = r.origin + t * r.direction;
-    isect.position = Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(p, 1.0f));
-    isect.normal = glm::normalize(Vector3f(m_pSceneObject->GetObjectToWorld() * Vector4f(mNormal, 0.0f)));
+    isect.position = p;
+    isect.normal = mNormal;
+    isect.shadingNormal = glm::normalize(b0 * mNormals[0] + b1 * mNormals[1] + b2 * mNormals[2]);
+    
     isect.tangent = mTangent;
     isect.uv = b0 * mTexCoords[0] + b1 * mTexCoords[1] + b2 * mTexCoords[2];
     isect.t = t;

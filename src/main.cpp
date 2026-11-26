@@ -2,7 +2,7 @@
 
 int main() 
 {
-    Renderer renderer(1920, 1080, 3, 15, 1024, "scenes/scene17.xml");
+    Renderer renderer(1920, 1080, 3, 15, 1024, "scenes/scene19_1.xml");
     renderer.Run();
     
     return 0;
