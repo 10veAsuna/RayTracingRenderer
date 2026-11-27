@@ -20,10 +20,10 @@ bool SceneObject::Intersect(Ray ray, Intersection& isect) const
 
 SceneObject::~SceneObject()
 {
-    for (const auto& primitive : mPrimitives)
+    /*for (const auto& primitive : mPrimitives)
     {
         delete primitive;
-    }
+    }*/
 }
 
 void SceneObject::Sample(Vector3f& p, Vector3f& normal, float& pdf)

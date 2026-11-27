@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Material.h"
+#include "MemoryPool.h"
 #include "Primitive.h"
 #include "Ray.h"
 
@@ -19,7 +20,9 @@ public:
     template<typename T, typename... Args>
     T* CreatePrimitive(Args&&... args)
     {
-        T* primitive = new T(this, std::forward<Args>(args)...);
+        void* mem = MemoryPool::GetInstance().Allocate(sizeof(T));
+        
+        T* primitive = new (mem) T(this, std::forward<Args>(args)...);
         mPrimitives.push_back(primitive);
         return primitive;
     }

@@ -71,6 +71,7 @@ add_executable(MyRender
     scenes/scene17.xml
     scenes/scene18.xml
     scenes/scene19_1.xml
+        src/MemoryPool.h
 )
 target_link_libraries(MyRender PRIVATE MyRenderCore minifb::minifb)
 
